@@ -1,1 +1,0 @@
-# YouTuber-Simulator.-by-Clidex-Studio-
