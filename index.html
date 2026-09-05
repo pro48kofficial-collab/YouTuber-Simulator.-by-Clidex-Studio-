@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#d71920">
+<title>YouTuber Simulator</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{--red:#e31b23;--red2:#ff3b42;--dark:#090b12;--panel:#111521;--panel2:#181d2b;--text:#fff;--muted:#9da5b7;--gold:#ffd43b}
+body{margin:0;background:#07080c;color:var(--text);font-family:Arial,Helvetica,sans-serif;overflow:hidden}
+button,input,textarea{font:inherit}
+button{cursor:pointer;border:0;color:#fff}
+#loading{position:fixed;inset:0;background:#08090d;z-index:99;display:flex;align-items:center;justify-content:center;flex-direction:column}
+.logo{font-weight:1000;font-size:clamp(32px,9vw,70px);letter-spacing:-3px;color:#fff;text-align:center}
+.logo span{color:var(--red)}
+.loadbox{width:min(520px,82vw);height:18px;background:#262b37;border:2px solid #3b4250;border-radius:12px;overflow:hidden;margin-top:24px}
+#loadbar{height:100%;width:0;background:linear-gradient(90deg,#b90f16,#ff4048);transition:width .08s}
+#loadtxt{margin-top:10px;color:#aeb6c7;font-weight:700}
+#app{height:100vh;display:none;position:relative}
+#scene{position:absolute;inset:0 0 76px 0;background:#151822;overflow:hidden}
+#room{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center}
+#character{position:absolute;height:72%;max-height:760px;width:auto;left:50%;bottom:1%;transform:translateX(-50%);object-fit:contain;filter:drop-shadow(0 12px 8px rgba(0,0,0,.45));user-select:none;touch-action:manipulation}
+#stats{position:absolute;left:12px;right:12px;top:12px;display:flex;gap:8px;flex-wrap:wrap;pointer-events:none}
+.stat{background:rgba(8,10,16,.86);border:1px solid #343b4a;border-radius:12px;padding:8px 11px;font-weight:800;box-shadow:0 5px 20px #0007}
+.stat small{display:block;color:var(--muted);font-size:10px;text-transform:uppercase}
+#toast{position:absolute;top:75px;left:50%;transform:translateX(-50%) translateY(-15px);opacity:0;background:#101522;border:1px solid #3b4252;padding:10px 14px;border-radius:12px;font-weight:800;transition:.25s;z-index:20;pointer-events:none}
+#toast.show{opacity:1;transform:translateX(-50%)}
+#nav{position:absolute;bottom:0;left:0;right:0;height:76px;background:#0c0f17;border-top:1px solid #303646;display:flex;overflow-x:auto;z-index:30}
+.navbtn{min-width:88px;background:transparent;color:#9da5b7;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:12px;font-weight:800}
+.navbtn b{font-size:21px}
+.navbtn.active{color:#fff;background:linear-gradient(#171c28,#0f121b)}
+.navbtn.active b{color:var(--red2)}
+.modal{position:fixed;inset:0;background:#0009;z-index:60;display:none;align-items:flex-end;justify-content:center}
+.modal.open{display:flex}
+.sheet{width:min(760px,100%);max-height:92vh;overflow:auto;background:#0e121c;border:1px solid #303746;border-radius:20px 20px 0 0;padding:18px}
+.sheet h2{margin:0 0 14px;font-size:24px}
+.close{float:right;background:#252b39;border-radius:10px;padding:8px 12px}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.card{background:#171c28;border:1px solid #303747;border-radius:14px;padding:13px}
+.card h3{margin:0 0 6px;font-size:16px}
+.card p{margin:4px 0;color:var(--muted);font-size:13px}
+.primary{background:linear-gradient(135deg,#c9141b,#ff3c43);border-radius:11px;padding:10px 13px;font-weight:900}
+.secondary{background:#272e3d;border-radius:11px;padding:10px 13px;font-weight:800}
+.danger{background:#7e171b;border-radius:11px;padding:10px 13px;font-weight:900}
+input,textarea{width:100%;background:#080b12;color:#fff;border:1px solid #3a4151;border-radius:10px;padding:11px;outline:none}
+textarea{min-height:90px;resize:vertical}
+label{display:block;color:#c4cad6;font-size:12px;font-weight:800;margin:10px 0 6px}
+.row{display:flex;gap:9px;align-items:center}
+.row>*{flex:1}
+.progress{height:15px;background:#282e3a;border-radius:10px;overflow:hidden}
+.progress>div{height:100%;background:linear-gradient(90deg,#d3131a,#ff4148);width:0}
+.video-item{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid #2a3040}
+.thumb{width:86px;height:54px;object-fit:cover;border-radius:8px;background:#242a38}
+.achievement{display:flex;align-items:center;gap:12px}
+.badge{width:52px;height:52px;border-radius:50%;display:grid;place-items:center;background:#272e3b;font-size:25px;filter:grayscale(1)}
+.unlocked .badge{filter:none;background:#322b0a}
+.muted{color:var(--muted)}
+@media(max-width:520px){
+  #character{height:67%;bottom:3%}
+  .grid{grid-template-columns:1fr}
+  .stat{padding:7px 9px}
+  .stat small{font-size:9px}
+}
+</style>
+</head>
+<body>
+<div id="loading">
+  <div class="logo">You<span>Tuber</span><br>SIMULATOR</div>
+  <div class="loadbox"><div id="loadbar"></div></div>
+  <div id="loadtxt">Завантаження 0%</div>
+</div>
+
+<div id="app">
+  <div id="scene">
+    <img id="room" src="room.png" alt="Кімната">
+    <img id="character" src="character.png" alt="Персонаж">
+    <div id="stats">
+      <div class="stat"><small>Долари</small>💵 <span id="money">0</span></div>
+      <div class="stat"><small>Підписники</small>👥 <span id="subs">0</span></div>
+      <div class="stat"><small>Перегляди</small>👁️ <span id="views">0</span></div>
+      <div class="stat"><small>За клік</small>⚡ +<span id="clickPower">1</span></div>
+    </div>
+    <div id="toast"></div>
+  </div>
+
+  <nav id="nav">
+    <button class="navbtn active" data-open="home"><b>🏠</b>Головна</button>
+    <button class="navbtn" data-open="videos"><b>🎬</b>Відео</button>
+    <button class="navbtn" data-open="upgrades"><b>⬆️</b>Апгрейди</button>
+    <button class="navbtn" data-open="achievements"><b>🏆</b>Досягнення</button>
+    <button class="navbtn" data-open="profile"><b>👤</b>Профіль</button>
+    <button class="navbtn" data-open="settings"><b>⚙️</b>Налаштування</button>
+  </nav>
+</div>
+
+<div id="modal" class="modal"><div class="sheet" id="sheet"></div></div>
+
+<script>
+const $=id=>document.getElementById(id);
+const fmt=n=>new Intl.NumberFormat('uk-UA',{notation:'compact',maximumFractionDigits:2}).format(n);
+const exact=n=>new Intl.NumberFormat('uk-UA').format(Math.floor(n));
+const SAVE='ytSimSaveV1';
+
+let state={
+  money:0,subs:0,views:0,clickPower:1,
+  upgrades:{click:0,views:0,subs:0,video:0},
+  channel:'My YouTube Channel',avatar:'',
+  videos:[], unlocked:[], bg:'', charVisible:true
+};
+
+function save(){localStorage.setItem(SAVE,JSON.stringify(state));}
+function load(){try{const x=JSON.parse(localStorage.getItem(SAVE));if(x)state={...state,...x,upgrades:{...state.upgrades,...x.upgrades}}}catch(e){}}
+function toast(t){$('toast').textContent=t;$('toast').classList.add('show');clearTimeout(window.tt);window.tt=setTimeout(()=>$('toast').classList.remove('show'),1700)}
+function update(){
+  $('money').textContent=exact(state.money);
+  $('subs').textContent=fmt(state.subs);
+  $('views').textContent=fmt(state.views);
+  $('clickPower').textContent=fmt(state.clickPower);
+  $('character').style.display=state.charVisible?'block':'none';
+  save();
+}
+function addMoney(n){state.money+=n;update()}
+function clickCreator(){
+  addMoney(state.clickPower);
+  if(navigator.vibrate) navigator.vibrate(8);
+}
+$('character').addEventListener('pointerdown',clickCreator);
+
+function openModal(title,html){
+  $('sheet').innerHTML='<button class="close" onclick="closeModal()">✕</button><h2>'+title+'</h2>'+html;
+  $('modal').classList.add('open');
+}
+function closeModal(){$('modal').classList.remove('open')}
+$('modal').addEventListener('pointerdown',e=>{if(e.target.id==='modal')closeModal()});
+
+document.querySelectorAll('.navbtn').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('.navbtn').forEach(x=>x.classList.remove('active'));b.classList.add('active');
+  const x=b.dataset.open;
+  if(x==='home')closeModal();
+  if(x==='videos')videos();
+  if(x==='upgrades')upgrades();
+  if(x==='achievements')achievements();
+  if(x==='profile')profile();
+  if(x==='settings')settings();
+});
+
+function videos(){
+ openModal('🎬 Відео',`
+ <div class="card">
+  <h3>Опублікувати нове відео</h3>
+  <label>Назва</label><input id="vtitle" placeholder="Мій крутий ролик">
+  <label>Опис</label><textarea id="vdesc" placeholder="Про що це відео?"></textarea>
+  <label>Обкладинка</label><input id="vthumb" type="file" accept="image/*">
+  <div style="height:10px"></div>
+  <button class="primary" onclick="startVideo()">🎥 Почати публікацію</button>
+  <p class="muted">Для публікації потрібно зробити 400 кліків по ютуберу.</p>
+ </div>
+ <h3 style="margin-top:18px">📚 Історія відео</h3>
+ <div id="history">${historyHtml()}</div>`);
+}
+function historyHtml(){
+ if(!state.videos.length)return '<p class="muted">Тут з’являться твої відео.</p>';
+ return state.videos.slice().reverse().map(v=>`
+ <div class="video-item">
+  ${v.thumb?`<img class="thumb" src="${v.thumb}">`:`<div class="thumb"></div>`}
+  <div><b>${esc(v.title)}</b><p>👁️ ${fmt(v.views)} · 👥 +${fmt(v.subs)} · 💵 +$${exact(v.money)}</p><small class="muted">${esc(v.desc||'Без опису')}</small></div>
+ </div>`).join('');
+}
+function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+
+function startVideo(){
+ const title=$('vtitle').value.trim()||'Без назви';
+ const desc=$('vdesc').value.trim();
+ const file=$('vthumb').files[0];
+ if(file){
+  const r=new FileReader();
+  r.onload=()=>publishChallenge(title,desc,r.result);
+  r.readAsDataURL(file);
+ }else publishChallenge(title,desc,'');
+}
+function publishChallenge(title,desc,thumb){
+ let clicks=0;
+ openModal('🎬 Монтаж відео',`
+ <div class="card">
+  <h3>Підготуй ролик до публікації</h3>
+  <p>Клікай по ютуберу: <b><span id="vc">0</span>/400</b></p>
+  <div class="progress"><div id="vp"></div></div>
+  <button class="primary" style="width:100%;margin-top:14px;font-size:18px" id="vclick">📹 КЛІК!</button>
+ </div>`);
+ $('vclick').onclick=()=>{
+   clicks++;
+   $('vc').textContent=clicks;$('vp').style.width=(clicks/4)+'%';
+   if(clicks>=400){
+     $('vclick').disabled=true;
+     setTimeout(()=>finishVideo(title,desc,thumb),250);
+   }
+ };
+}
+function finishVideo(title,desc,thumb){
+ // Weighted-ish random range: most videos are modest, rare videos can go very high.
+ const views=Math.floor(1000*Math.pow(10,Math.random()*4));
+ const subs=Math.floor(20+Math.pow(Math.random(),1.7)*980);
+ const money=Math.floor(30 + Math.sqrt(views)*2.2) * (1+state.upgrades.video*.15);
+ const v={id:Date.now(),title,desc,thumb,views,subs,money:Math.floor(money)};
+ state.views+=views;state.subs+=subs;state.money+=Math.floor(money);
+ state.videos.push(v);update();
+ toast(`Відео опубліковано! +${fmt(subs)} підписників`);
+ videos();
+}
+
+function upgrades(){
+ const u=state.upgrades;
+ const data=[
+  ['click','⚡ Прибуток за клік',u.click,100,`+$${u.click+1} до сили кліку`],
+  ['views','👁️ Перегляди',u.views,500,`+10% до переглядів відео`],
+  ['subs','👥 Підписники',u.subs,750,`+10% до підписників`],
+  ['video','💵 Долари за відео',u.video,1000,`+15% до нагороди за відео`]
+ ];
+ openModal('⬆️ Апгрейди',`<div class="grid">${data.map(d=>{
+   const cost=Math.floor(d[3]*Math.pow(1.65,d[2]));
+   return `<div class="card"><h3>${d[0]} ${d[1]}</h3><p>Рівень: ${d[2]}</p><p>${d[4]}</p><button class="primary" onclick="buyUpgrade('${d[0]}',${cost})">💵 $${exact(cost)}</button></div>`
+ }).join('')}</div>`);
+}
+function buyUpgrade(type,cost){
+ if(state.money<cost){toast('Не вистачає доларів 😕');return}
+ state.money-=cost;state.upgrades[type]++;
+ if(type==='click')state.clickPower++;
+ update();toast('Апгрейд придбано!');upgrades();
+}
+
+const ach=[
+ [1000,'🥉','Бронзова кнопка'],
+ [100000,'🥈','Срібна кнопка'],
+ [1000000,'🥇','Золота кнопка'],
+ [10000000,'💎','Діамантова кнопка'],
+ [100000000,'💠','Рубінова кнопка'],
+ [1000000000,'👑','Кнопка 1 МІЛЬЯРД']
+];
+function achievements(){
+ openModal('🏆 Досягнення',ach.map(a=>{
+  const ok=state.subs>=a[0];
+  return `<div class="card achievement ${ok?'unlocked':''}" style="margin-bottom:10px">
+   <div class="badge">${a[1]}</div><div><b>${a[2]}</b><p>${fmt(a[0])} підписників · ${ok?'РОЗБЛОКОВАНО 🔥':'🔒 Заблоковано'}</p></div>
+  </div>`;
+ }).join(''));
+}
+
+function profile(){
+ openModal('👤 Профіль',`
+ <div class="card">
+  <div class="row">
+   <div style="width:80px;flex:0 0 80px;text-align:center">
+    ${state.avatar?`<img src="${state.avatar}" style="width:76px;height:76px;border-radius:50%;object-fit:cover">`:'<div style="font-size:55px">👤</div>'}
+   </div>
+   <div><h3 style="margin:0">${esc(state.channel)}</h3><p>Твій канал</p></div>
+  </div>
+  <label>Назва каналу</label><input id="channel" value="${esc(state.channel)}">
+  <label>Аватарка</label><input id="avatarFile" type="file" accept="image/*">
+  <button class="primary" style="margin-top:10px" onclick="saveProfile()">💾 Зберегти профіль</button>
+ </div>
+ <div class="grid" style="margin-top:12px">
+  <div class="card"><h3>👥 Підписники</h3><p>${exact(state.subs)}</p></div>
+  <div class="card"><h3>👁️ Перегляди</h3><p>${exact(state.views)}</p></div>
+  <div class="card"><h3>💵 Зароблено</h3><p>$${exact(state.money)}</p></div>
+  <div class="card"><h3>🎬 Відео</h3><p>${state.videos.length}</p></div>
+ </div>`);
+}
+function saveProfile(){
+ state.channel=$('channel').value.trim()||'My YouTube Channel';
+ const f=$('avatarFile').files[0];
+ if(f){const r=new FileReader();r.onload=()=>{state.avatar=r.result;update();profile()};r.readAsDataURL(f)}
+ else {update();profile()}
+}
+
+function settings(){
+ openModal('⚙️ Налаштування',`
+ <div class="card">
+  <h3>🖼️ Фон кімнати</h3><p>Можеш поставити свою фотографію/картинку як фон гри.</p>
+  <input id="bgFile" type="file" accept="image/*">
+  <button class="secondary" style="margin-top:10px" onclick="setBg()">Поставити фон</button>
+ </div>
+ <div class="card" style="margin-top:10px">
+  <h3>🧍 Персонаж</h3><p>Персонаж клікабельний і приносить долари.</p>
+  <button class="secondary" onclick="state.charVisible=!state.charVisible;update();settings()">${state.charVisible?'🙈 Сховати':'👀 Показати'} персонажа</button>
+ </div>
+ <div class="card" style="margin-top:10px">
+  <h3>💾 Збереження</h3><p>Прогрес автоматично зберігається у пам’яті браузера.</p>
+  <button class="danger" onclick="resetGame()">🗑️ Скинути весь прогрес</button>
+ </div>`);
+}
+function setBg(){
+ const f=$('bgFile').files[0];if(!f){toast('Вибери картинку');return}
+ const r=new FileReader();r.onload=()=>{state.bg=r.result;$('room').src=r.result;save();toast('Фон встановлено!')};r.readAsDataURL(f)
+}
+function resetGame(){
+ if(confirm('Точно скинути весь прогрес? Це незворотно.')){
+  localStorage.removeItem(SAVE);location.reload();
+ }
+}
+
+function passiveViews(){
+ let gain=0;
+ state.videos.forEach(v=>{
+   const g=Math.max(1,Math.floor(v.views*(0.002+Math.random()*0.006)));
+   v.views+=g;gain+=g;
+ });
+ if(gain){state.views+=gain;update()}
+}
+load();
+if(state.bg)$('room').src=state.bg;
+
+let p=0;
+const timer=setInterval(()=>{
+ p=Math.min(100,p+2);
+ $('loadbar').style.width=p+'%';$('loadtxt').textContent='Завантаження '+p+'%';
+ if(p>=100){
+  clearInterval(timer);setTimeout(()=>{$('loading').style.display='none';$('app').style.display='block';update()},250);
+ }
+},30);
+setInterval(passiveViews,15000);
+</script>
+</body>
+</html>
